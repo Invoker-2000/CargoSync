@@ -72,7 +72,7 @@ export async function GET(
   }
 
   const totalAvailable = availableBatches.reduce(
-    (sum, b) => sum + (b.quantity - b.usedQuantity),
+    (sum: number, b) => sum + (b.quantity - b.usedQuantity),
     0
   );
 
