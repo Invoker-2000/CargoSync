@@ -43,7 +43,7 @@ export async function GET(
 
   // Filter batches with available stock and build suggestion plan
   const availableBatches = batches.filter(
-    (b) => b.quantity - b.usedQuantity > 0
+    (b: (typeof batches)[number]) => b.quantity - b.usedQuantity > 0
   );
 
   // Build FEFO suggestion: how to fulfill remaining qty with available batches
