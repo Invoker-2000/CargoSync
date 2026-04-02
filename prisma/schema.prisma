@@ -1,0 +1,172 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String    @unique
+  password      String
+  role          UserRole  @default(OPERATOR)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  accounts      Account[]
+  sessions      Session[]
+  scanRecords   ScanRecord[]
+  loads         Load[]
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+  @@unique([identifier, token])
+}
+
+enum UserRole {
+  ADMIN
+  OPERATOR
+  BILLING
+}
+
+model Product {
+  id          String      @id @default(cuid())
+  code        String      @unique
+  name        String
+  barcode     String?     @unique
+  unit        String      @default("CX")
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  loadItems   LoadItem[]
+  stockBatches StockBatch[]
+}
+
+model StockBatch {
+  id            String      @id @default(cuid())
+  batchNumber   String
+  productId     String
+  product       Product     @relation(fields: [productId], references: [id])
+  expiryDate    DateTime?
+  quantity      Float
+  usedQuantity  Float       @default(0)
+  productionOrderId String?
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  scanRecords   ScanRecord[]
+  @@unique([batchNumber, productId])
+}
+
+model Manifest {
+  id          String      @id @default(cuid())
+  fileName    String
+  importedAt  DateTime    @default(now())
+  importedBy  String
+  loads       Load[]
+}
+
+model Load {
+  id            String      @id @default(cuid())
+  loadNumber    String      @unique
+  clientName    String
+  clientDoc     String?
+  status        LoadStatus  @default(PENDING)
+  manifestId    String?
+  manifest      Manifest?   @relation(fields: [manifestId], references: [id])
+  operatorId    String?
+  operator      User?       @relation(fields: [operatorId], references: [id])
+  startedAt     DateTime?
+  finalizedAt   DateTime?
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  items         LoadItem[]
+  scanRecords   ScanRecord[]
+  billingEvent  BillingEvent?
+}
+
+enum LoadStatus {
+  PENDING
+  IN_PROGRESS
+  FINALIZED
+  CANCELLED
+}
+
+model LoadItem {
+  id              String      @id @default(cuid())
+  loadId          String
+  load            Load        @relation(fields: [loadId], references: [id])
+  productId       String
+  product         Product     @relation(fields: [productId], references: [id])
+  requiredQuantity Float
+  checkedQuantity  Float      @default(0)
+  status          ItemStatus  @default(PENDING)
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+  scanRecords     ScanRecord[]
+}
+
+enum ItemStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+}
+
+model ScanRecord {
+  id            String      @id @default(cuid())
+  loadId        String
+  load          Load        @relation(fields: [loadId], references: [id])
+  loadItemId    String
+  loadItem      LoadItem    @relation(fields: [loadItemId], references: [id])
+  productId     String
+  batchId       String?
+  batch         StockBatch? @relation(fields: [batchId], references: [id])
+  quantity      Float
+  scannedBarcode String
+  operatorId    String
+  operator      User        @relation(fields: [operatorId], references: [id])
+  createdAt     DateTime    @default(now())
+}
+
+model BillingEvent {
+  id          String    @id @default(cuid())
+  loadId      String    @unique
+  load        Load      @relation(fields: [loadId], references: [id])
+  status      BillingStatus @default(PENDING)
+  notifiedAt  DateTime  @default(now())
+  processedAt DateTime?
+  notes       String?
+}
+
+enum BillingStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+}
